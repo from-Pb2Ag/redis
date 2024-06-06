@@ -72,12 +72,18 @@ robj *makeObjectShared(robj *o) {
     return o;
 }
 
+// 使用的malloc分配区块大单位为64B. 两次堆区分配. 返回的`redisObject`和其`ptr`指针指向的数据, 布局上可能差很多.
+// `sdsnewlen`分配数据 (+sdshdr头开销和额外的"\0"终止符.). `createObject` 分配`redisObject`元数据.
+// 但是`Embedded`编码因为数据较小, 可以一次分配.
 /* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
 robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
 }
 
+// `struct sdshdr8 *sh = (void*)(o+1);` 这个指针所指向的struct类型 (`struct sdshdr8`)
+// 占多少字节? 注意指针的arithmetic的意义.
+// `robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);` 一次分配完整.
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */

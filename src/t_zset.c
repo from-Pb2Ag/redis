@@ -126,6 +126,10 @@ int zslRandomLevel(void) {
     return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
 }
 
+// 只有插入节点的时候, 需要敲定一个level?
+// insert的前置条件是查找. 从头节点的最高层开始向下找 (`for (i = zsl->level-1; i >= 0; i--) {`).
+// 注意持续查找的条件: `x->level[i].forward->score < score`.
+// 新插入的节点假设是x层的, 需要维护x + 1个不同层级的链.
 /* Insert a new node in the skiplist. Assumes the element does not already
  * exist (up to the caller to enforce that). The skiplist takes ownership
  * of the passed SDS string 'ele'. */

@@ -261,6 +261,38 @@ void setTypeConvert(robj *setobj, int enc) {
     }
 }
 
+//      intset.h
+//      typedef struct intset {
+//          uint32_t encoding;
+//          uint32_t length;
+//          int8_t contents[];
+//      } intset;
+// `set`的底层编码: `OBJ_ENCODING_HT`适用整型数, 且较少. 否则`OBJ_ENCODING_HT`.
+// 见函数`void setTypeConvert(robj *setobj, int enc)`
+// config.c: `server.set_max_intset_entries, 512,`
+// 当插入整型数突破"较少"的限制后, 编码结构改为`OBJ_ENCODING_HT`.
+// 如果插入的东西不能解释为long long, 被毁坏只能用`OBJ_ENCODING_HT`.
+// 但是插入的整型数的"数值"没有限制. 不会以为int8_t []型的数组不能存需要字节更多的整型数.
+// `intsetAdd` => `_intsetValueEncoding`. 根据插入的数值得出编码方式.
+// 不能重复, 新插入的数值如果重复提前abort (`intsetSearch`二分逻辑查找.).
+// 每次既定成功的插入, 都会导致空间的重新分配?
+// `intsetAdd` => `intsetResize`
+// 找到恰好大于待插入元素val的元素[pos], [pos, +∞) => [pos + 1, +∞).
+//      static uint8_t _intsetValueEncoding(int64_t v) {
+//          if (v < INT32_MIN || v > INT32_MAX)
+//              return INTSET_ENC_INT64;
+//          else if (v < INT16_MIN || v > INT16_MAX)
+//              return INTSET_ENC_INT32;
+//          else
+//              return INTSET_ENC_INT16;
+//      }
+//      dict.h
+//      typedef struct dictht {
+//          dictEntry **table;
+//          unsigned long size;
+//          unsigned long sizemask;
+//          unsigned long used;
+//      } dictht;
 void saddCommand(client *c) {
     robj *set;
     int j, added = 0;

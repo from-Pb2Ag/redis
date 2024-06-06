@@ -34,6 +34,7 @@
  * String Commands
  *----------------------------------------------------------------------------*/
 
+// 经典单个string最大大小.
 static int checkStringLength(client *c, long long size) {
     if (size > 512*1024*1024) {
         addReplyError(c,"string exceeds maximum allowed size (512MB)");
@@ -93,6 +94,47 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
     addReply(c, ok_reply ? ok_reply : shared.ok);
 }
 
+// >>   SET resource:lock "Redis Demo" EX 10     (快速输入下条)
+//          OK
+// >>   TTL resource:lock
+//          (integer) 8                         （-2表示已经过期; -1表示key存在但未设置过期时间）
+// 注意 "NX", "XX", "EX", "PX" 选项是两两互斥的 (下面一大坨if...else if...).
+// `robj *next` 指示的是[-option]对应的参数倒计时计数 (if exist.), 注意到 `char* a`. 但显然还要 `int unit` 计数单位.
+// `tryObjectEncoding`: 针对string类型的value做空间优化.
+// 1. 语义表示整型数: "-1234567" => 显然能优化成32bit的int.
+// 2. 字符串不算特别长, 且原始编码低效: `RAW` => `EMBSTR`编码方式改进. 最大的优势是一次, 连续.
+//      为什么上界是 [44]字节 (`OBJ_ENCODING_EMBSTR_SIZE_LIMIT`宏)?
+//      以下结构体占据 4bit + 4bit + 24bit + 4 + 8 => 16字节.
+//      `#define LRU_CLOCK_RESOLUTION 1000 /* LRU clock resolution in ms`: LRU的计数为1000ms进位1.
+//      用完整的unint_32编码那最大数值得约5e4年. 现在用LRU_BITS => 24bit约192天走完, 相对合理.
+//      See P7, C++14 standard.
+//      typedef struct redisObject {
+//          unsigned type:4;
+//          unsigned encoding:4;
+//          unsigned lru:LRU_BITS; /* LRU time (relative to global lru_clock) or
+//                                  * LFU data (least significant 8 bits frequency
+//                                  * and most significant 16 bits access time). */
+//          int refcount;
+//          void *ptr;
+//      } robj;
+//      以下结构体占据 1 + 1 + 1 => 3字节.
+//      一般情况下我们显然犯不着用32bit, 64bit的字段 (unit32_t, 对应`sdshdr32`, etc.) 存元数据.
+//      struct __attribute__ ((__packed__)) sdshdr8 {
+//          uint8_t len; /* used */
+//          uint8_t alloc; /* excluding the header and null terminator */
+//          unsigned char flags; /* 3 lsb of type, 5 unused bits */
+//          char buf[];
+//      };
+//      16 + 3  + 1 + x <= 64. [1]代表字符串末附加的'\0'. 因此"字符串不算特别长"的metric为长度 <= 44.
+//  -----------------------
+//  |      -------------- |
+//  |    --|redisObject | |
+//  |    | -------------- |
+//  | ptr| -------------- | 预先计算分配足够空间.
+//  |    ->|  sdshdr8   | |
+//  |      -------------- |
+//  -----------------------
+//      设置`buf[]`的"\0"后memcpy.
 /* SET key value [NX] [XX] [KEEPTTL] [EX <seconds>] [PX <milliseconds>] */
 void setCommand(client *c) {
     int j;

@@ -176,6 +176,21 @@ int dictExpand(dict *d, unsigned long size)
     return DICT_OK;
 }
 
+// 对哈希表`d->ht[0]`做re-hash. 将`n`个元素转移到`d->ht[1]`中.
+// 几个问题: 什么时候选择re-hash? 一段时间内用1millisecond去re-hash一小部分.
+//              对本set执行写 (add, delete), 读 (find) 会执行一次.
+//              `server.config_hz, CONFIG_DEFAULT_HZ`默认每100ms调用1次函数.
+//              100ms会匀出1ms循环执行re-hash.
+//              |->`aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL)`
+//                 |->`serverCron`.
+//                    |->`databasesCron`.
+//                       |->`incrementallyRehash`.
+//                          |->`dictRehashMilliseconds`.
+//          完整的`d->ht[0]`还有多少个有效元素 (`used`)?
+//          现在"数据密度"可能很低. 能容忍累计访问多少个空bucket (`empty_visits`)?
+//          找到了非空bucket后, 逐个全部摘下.
+//          `d->ht[0]`对应的bucket置空.
+//          浅拷贝到`d->ht[0]`后`d->ht[1]`置空????
 /* Performs N steps of incremental rehashing. Returns 1 if there are still
  * keys to move from the old to the new hash table, otherwise 0 is returned.
  *
