@@ -149,6 +149,22 @@ static int aeApiAssociate(const char *where, int portfd, int fd, int mask) {
     return rv;
 }
 
+// 我找到了这样的签名完全相同的函数: 被static修饰, 在不同的源文件中实现.
+// see `aeApiAddEvent` in ae_epoll.c, ae_kqueue.c, ae_select.c
+// 仅在ae.c中被4选1 include.
+// #ifdef HAVE_EVPORT
+// #include "ae_evport.c"
+// #else
+//     #ifdef HAVE_EPOLL
+//     #include "ae_epoll.c"
+//     #else
+//         #ifdef HAVE_KQUEUE
+//         #include "ae_kqueue.c"
+//         #else
+//         #include "ae_select.c"
+//         #endif
+//     #endif
+// #endif
 static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     aeApiState *state = eventLoop->apidata;
     int fullmask, pfd;

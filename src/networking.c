@@ -1855,6 +1855,7 @@ void processInputBuffer(client *c) {
     }
 }
 
+// client键入命令, server读取该命令的callback.
 void readQueryFromClient(connection *conn) {
     client *c = connGetPrivateData(conn);
     int nread, readlen;

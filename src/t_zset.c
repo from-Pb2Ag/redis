@@ -130,6 +130,13 @@ int zslRandomLevel(void) {
 // insert的前置条件是查找. 从头节点的最高层开始向下找 (`for (i = zsl->level-1; i >= 0; i--) {`).
 // 注意持续查找的条件: `x->level[i].forward->score < score`.
 // 新插入的节点假设是x层的, 需要维护x + 1个不同层级的链.
+//   ---------------->
+//   ------>   ------>   ------>
+// 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+// 像上面这样 n 个节点有 1/2 * n 个节点在第2层, 1/4 * n 个节点在第3层, etc.
+// 实际上均摊存了不少指针. 即p = 1/2 => 每个节点均摊2个指针.
+//                         p = 1/4 => 每个节点均摊1.33个指针 (1 / (1 - p).).
+// see `#define ZSKIPLIST_P 0.25      /* Skiplist P = 1/4 */` server.h.
 /* Insert a new node in the skiplist. Assumes the element does not already
  * exist (up to the caller to enforce that). The skiplist takes ownership
  * of the passed SDS string 'ele'. */
