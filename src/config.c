@@ -301,9 +301,12 @@ void loadServerConfigFromString(char *config) {
         linenum = i+1;
         lines[i] = sdstrim(lines[i]," \t\r\n");
 
+        // .conf 文件的行如果#注释打头或\0换行打头直接skip.
         /* Skip comments and blank lines */
         if (lines[i][0] == '#' || lines[i][0] == '\0') continue;
 
+        // foo bar "newline are supported\n" and "\xff\x00otherstuff"
+        // (?) 是会解析成 [foo, bar, newline are supported\n, and, \xff\x00otherstuff]
         /* Split into arguments */
         argv = sdssplitargs(lines[i],&argc);
         if (argv == NULL) {
@@ -321,6 +324,19 @@ void loadServerConfigFromString(char *config) {
         /* Iterate the configs that are standard */
         int match = 0;
         for (standardConfig *config = configs; config->name != NULL; config++) {
+            // 我看这逻辑, argv[0]应该是配置项的key, 也就意味着本行最多就一个key?
+            // `argc != 2` 暗示key, value分别1个?
+            // `configs` 是[]standardConfig数组. 这个循环的含义是:
+                // 对于路径指示读入的配置文件的特定一行, 我们遍历整个configs全局变量.
+                // 从而知道该行条目的"key"是否合法, 合法情况下, 正确的处理方式default值等.
+                // 还得知道"key"对应的value是否合法. 参见函数`boolConfigSet()`
+                // 对于bool型的"key" (见`configs`数组起始部分), 合法的value只有yes, no
+                // 以下来自.conf的注释, 注意连括号都不能加.
+                    // # Use the following directive to enable TLS on replication links.
+                    // #
+                    // # tls-replication yes
+                // 以下来自`configs`
+                    // createBoolConfig("tls-replication", NULL, MODIFIABLE_CONFIG, server.tls_replication, 0, NULL, NULL),
             if ((!strcasecmp(argv[0],config->name) ||
                 (config->alias && !strcasecmp(argv[0],config->alias))))
             {
