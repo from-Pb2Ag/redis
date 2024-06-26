@@ -104,6 +104,8 @@ sds sdsnewlen(const void *init, size_t initlen) {
         memset(sh, 0, hdrlen+initlen+1);
     s = (char*)sh+hdrlen;
     fp = ((unsigned char*)s)-1;
+    // sds header的第三个成员是flag, 指示sds类别? 5/8/16/32/64 => 3bit足够表示 (因为不是one hot)?
+    // 初始化时capacity没有余量.
     switch(type) {
         case SDS_TYPE_5: {
             *fp = type | (initlen << SDS_TYPE_BITS);

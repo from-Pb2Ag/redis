@@ -358,6 +358,7 @@ void loadServerConfigFromString(char *config) {
             continue;
         }
 
+        // 部分很特殊的key, 允许其value是list, 解包成较长的argv.
         /* Execute config directives */
         if (!strcasecmp(argv[0],"bind") && argc >= 2) {
             int j, addresses = argc-1;
