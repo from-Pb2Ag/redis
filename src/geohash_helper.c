@@ -196,6 +196,7 @@ GeoHashRadius geohashGetAreasByRadius(double longitude, double latitude, double 
     return radius;
 }
 
+// 那个version后引入的新数据结构?
 GeoHashRadius geohashGetAreasByRadiusWGS84(double longitude, double latitude,
                                            double radius_meters) {
     return geohashGetAreasByRadius(longitude, latitude, radius_meters);
